@@ -18,6 +18,15 @@ def _warn(code: str, message: str, entity: str | None = None, entity_id: str | N
     return Issue(severity="warning", code=code, message=message, entity=entity, entity_id=entity_id)
 
 
+def _info(code: str, message: str, entity: str | None = None, entity_id: str | None = None) -> Issue:
+    return Issue(severity="info", code=code, message=message, entity=entity, entity_id=entity_id)
+
+
+def _names(groups: list) -> str:
+    names = [g.name for g in groups]
+    return ", ".join(names) if len(names) <= 6 else f"{', '.join(names[:6])} și încă {len(names) - 6}"
+
+
 ENTITY_LABELS = {
     "programs": ("program", "programul"), "groups": ("group", "grupa"), "rooms": ("room", "sala"),
     "teachers": ("teacher", "profesorul"), "subjects": ("subject", "disciplina"),
@@ -129,13 +138,21 @@ def check_pins(idx: SetupIndex) -> list[Issue]:
 
 
 def check_coverage(idx: SetupIndex) -> list[Issue]:
-    """Subjects nobody teaches and groups missing a subject×kind."""
+    """Subjects nobody teaches and groups missing a subject×kind (one issue per subject×kind).
+
+    A group also counts as covered when it gets a same-named subject of the same
+    year from another program (shared courses across programs, common at UTM).
+    """
     covered: Counter = Counter()
+    covered_by_name: set = set()
     assigned_subjects = set()
     for a in idx.setup.assignments:
         assigned_subjects.add(a.subject_id)
+        sub = idx.subjects.get(a.subject_id)
         for gid in a.group_ids:
             covered[(a.subject_id, a.kind, gid)] += 1
+            if sub:
+                covered_by_name.add((sub.name.strip().lower(), sub.year, a.kind, gid))
     out: list[Issue] = []
     for sub in idx.setup.subjects:
         kinds = [k for k in ("lecture", "seminar", "lab") if getattr(sub, f"{k}_per_week") > 0]
@@ -147,16 +164,23 @@ def check_coverage(idx: SetupIndex) -> list[Issue]:
                              "profesor repartizat. Folosiți «Completează automat» la Repartizare.",
                              "subject", sub.id))
             continue
-        for g in groups:
-            for k in kinds:
+        for k in kinds:
+            missing, doubled = [], []
+            for g in groups:
                 n = covered[(sub.id, k, g.id)]
-                if n == 0:
-                    out.append(_warn("missing_coverage", f"Grupa {g.name} nu are {KIND_NAMES[k]} la "
-                                     f"{sub.name}. Adăugați o repartizare sau folosiți «Completează automat».",
-                                     "group", g.id))
+                if n == 0 and (sub.name.strip().lower(), sub.year, k, g.id) not in covered_by_name:
+                    missing.append(g)
                 elif n > 1:
-                    out.append(_warn("duplicate_coverage", f"Grupa {g.name} are {n} repartizări de "
-                                     f"{KIND_NAMES[k]} la {sub.name}; orele se vor dubla.", "group", g.id))
+                    doubled.append(g)
+            if missing:
+                who = f"Grupa {missing[0].name} nu are" if len(missing) == 1 else f"Grupele {_names(missing)} nu au"
+                out.append(_warn("missing_coverage", f"{who} {KIND_NAMES[k]} la {sub.name}. "
+                                 "Adăugați o repartizare sau folosiți «Completează automat».",
+                                 "subject", sub.id))
+            if doubled:
+                who = f"Grupa {doubled[0].name} are" if len(doubled) == 1 else f"Grupele {_names(doubled)} au"
+                out.append(_warn("duplicate_coverage", f"{who} mai multe repartizări de {KIND_NAMES[k]} la "
+                                 f"{sub.name}; orele se vor dubla.", "subject", sub.id))
     return out
 
 
@@ -165,7 +189,7 @@ def check_streams(idx: SetupIndex) -> list[Issue]:
     for st in idx.setup.streams:
         groups = [idx.groups[g] for g in st.group_ids if g in idx.groups]
         if len({(g.program_id, g.year) for g in groups}) > 1:
-            out.append(_warn("stream_mixed", f"Seria {st.name} conține grupe din programe sau ani diferiți "
+            out.append(_info("stream_mixed", f"Seria {st.name} conține grupe din programe sau ani diferiți "
                              f"({', '.join(g.name for g in groups)}). Verificați dacă e intenționat.",
                              "stream", st.id))
     return out
@@ -173,6 +197,8 @@ def check_streams(idx: SetupIndex) -> list[Issue]:
 
 def check_assignment_fit(idx: SetupIndex) -> list[Issue]:
     out: list[Issue] = []
+    # A shared course taught to a defined stream is intentional, not a mismatch.
+    stream_sets = {frozenset(st.group_ids) for st in idx.setup.streams}
     for a in idx.setup.assignments:
         t, sub = idx.teachers.get(a.teacher_id), idx.subjects.get(a.subject_id)
         if t is None or sub is None:
@@ -184,9 +210,9 @@ def check_assignment_fit(idx: SetupIndex) -> list[Issue]:
         if assignment_hours(sub, a) <= 0:
             out.append(_warn("assignment_no_hours", f"Repartizarea de {KIND_NAMES[a.kind]} la {sub.name} "
                              "are 0 ore pe săptămână și va fi ignorată.", "assignment", a.id))
-        for gid in a.group_ids:
-            g = idx.groups.get(gid)
-            if g and (g.program_id, g.year) != (sub.program_id, sub.year):
-                out.append(_warn("assignment_group_mismatch", f"Grupa {g.name} primește {sub.name}, "
-                                 "disciplină din alt program sau an.", "assignment", a.id))
+        foreign = [idx.groups[gid] for gid in a.group_ids if gid in idx.groups
+                   and (idx.groups[gid].program_id, idx.groups[gid].year) != (sub.program_id, sub.year)]
+        if foreign and frozenset(a.group_ids) not in stream_sets:
+            out.append(_warn("assignment_group_mismatch", f"{_names(foreign)} primește {sub.name}, "
+                             "disciplină din alt program sau an.", "assignment", a.id))
     return out

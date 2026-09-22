@@ -115,8 +115,27 @@ def test_warnings_for_streams_capabilities_and_coverage():
     setup.assignments.pop(2)  # PC lecture now uncovered
     a = analyze(setup)
     w = _codes(a, "warning")
-    assert {"stream_mixed", "teacher_not_capable", "missing_coverage"} <= w
+    assert {"teacher_not_capable", "missing_coverage"} <= w
+    assert "stream_mixed" in _codes(a, "info")  # shared cross-program streams are legitimate
     assert a.can_generate
+
+
+def test_shared_stream_course_is_not_a_mismatch_and_coverage_is_grouped():
+    setup = tiny_setup()
+    setup.programs.append(Program(id="p_si", name="Securitate", abbreviation="SI"))
+    setup.groups += [Group(id="g2", name="SI-251", program_id="p_si", year=1, students=20),
+                     Group(id="g3", name="SI-252", program_id="p_si", year=1, students=20)]
+    lecture = next(x for x in setup.assignments if x.kind == "lecture")
+    lecture.group_ids = ["g1", "g2", "g3"]
+    assert "assignment_group_mismatch" in _codes(analyze(setup), "warning")
+    setup.streams.append(Stream(id="st", name="TI+SI", group_ids=["g1", "g2", "g3"]))
+    assert "assignment_group_mismatch" not in _codes(analyze(setup), "warning")
+    sub = next(x for x in setup.subjects if x.id == lecture.subject_id)
+    setup.subjects.append(sub.model_copy(update={"id": "s_si_copy", "program_id": "p_si"}))
+    issues = [i for i in analyze(setup).issues if i.code == "missing_coverage" and i.entity_id == "s_si_copy"]
+    # lecture covered through the same-named course; the other kinds are one grouped warning each
+    assert all("Grupele SI-251, SI-252" in i.message for i in issues)
+    assert not any("curs" in i.message for i in issues)
 
 
 def test_subject_without_any_assignment_warns():
