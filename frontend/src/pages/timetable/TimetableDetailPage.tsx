@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../../api';
 import type { PlacedLesson, TimetableDetail, Violation } from '../../types';
@@ -24,6 +24,7 @@ export function TimetableDetailPage() {
   const [violations, setViolations] = useState<Violation[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [moving, setMoving] = useState(false);
+  const moveSeq = useRef(0);
   const [openedAt] = useState(() => Date.now());
 
   const load = useCallback(async () => {
@@ -48,16 +49,20 @@ export function TimetableDetailPage() {
 
   const move = async (lessonId: string, day: number, slot: number) => {
     const before = lessons;
+    const requestNo = ++moveSeq.current;
     setLessons(lessons.map((l) => (l.id === lessonId ? { ...l, day, slot } : l)));
     setMoving(true);
     try {
       const res = await api.moveLesson(id, { lesson_id: lessonId, day, slot });
+      // A newer drag already answered: its lesson list is the fresher one.
+      if (requestNo !== moveSeq.current) return;
       setLessons(res.lessons);
       setViolations(res.violations);
       const errs = res.violations.filter((v) => v.severity === 'error' && v.lesson_ids.includes(lessonId));
       if (errs.length > 0) toast.error(`Mutat, dar apare un conflict: ${errs[0].message}`);
       else toast.success('Lecția a fost mutată.');
     } catch (e) {
+      if (requestNo !== moveSeq.current) return;
       setLessons(before);
       toast.error(e instanceof ApiError ? e.detail : 'Nu am putut muta lecția.');
     } finally {

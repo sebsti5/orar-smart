@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
+import secrets
 import re
 import threading
 import time
@@ -22,7 +24,6 @@ log = logging.getLogger("orar.auth")
 COOKIE_NAME = "session"
 TOKEN_TTL_S = 7 * 24 * 3600
 JWT_ALG = "HS256"
-DEV_SECRET = "orar-smart-dev-secret-change-me-in-production"
 MIN_PASSWORD_LEN = 8
 MAX_PASSWORD_LEN = 128
 RATE_LIMIT_FAILURES = 10
@@ -30,7 +31,6 @@ RATE_LIMIT_WINDOW_S = 15 * 60
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-_warned: set[str] = set()
 _failures: dict[str, deque[float]] = defaultdict(deque)
 _failures_lock = threading.Lock()
 
@@ -42,15 +42,46 @@ def _now() -> float:
 # ------------------------------------------------------------------ secret
 
 
+_generated_secret: str | None = None
+
+
+def _local_secret_path() -> Path:
+    from app.db import DEFAULT_DB_PATH
+
+    db_path = Path(os.environ.get("ORAR_DB") or DEFAULT_DB_PATH)
+    return db_path.parent / ".orar_secret"
+
+
+def _load_or_create_local_secret() -> str:
+    """Random per-installation secret kept next to the database (never in source)."""
+    path = _local_secret_path()
+    try:
+        if path.exists():
+            existing = path.read_text().strip()
+            if existing:
+                return existing
+        path.parent.mkdir(parents=True, exist_ok=True)
+        secret = secrets.token_urlsafe(48)
+        path.write_text(secret)
+        path.chmod(0o600)
+        return secret
+    except OSError as exc:
+        log.warning("Nu pot salva secretul local (%s); sesiunile expiră la repornire.", exc)
+        return secrets.token_urlsafe(48)
+
+
 def get_secret() -> str:
+    global _generated_secret
     secret = os.environ.get("ORAR_SECRET")
     if secret:
         return secret
-    if "secret" not in _warned:
-        _warned.add("secret")
-        log.warning("ORAR_SECRET nu este setat; se folosește un secret de dezvoltare. "
-                    "Setați ORAR_SECRET în producție!")
-    return DEV_SECRET
+    if os.environ.get("ORAR_ENV") == "production":
+        raise RuntimeError("ORAR_SECRET trebuie setat în producție.")
+    if _generated_secret is None:
+        _generated_secret = _load_or_create_local_secret()
+        log.warning("ORAR_SECRET nu este setat; folosesc un secret local generat aleator (%s). "
+                    "Setați ORAR_SECRET în producție!", _local_secret_path())
+    return _generated_secret
 
 
 # ------------------------------------------------------------------ passwords / emails

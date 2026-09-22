@@ -111,8 +111,21 @@ def test_secret_fallback_warns(monkeypatch, caplog):
     from app import auth
 
     monkeypatch.delenv("ORAR_SECRET", raising=False)
-    auth._warned.clear()
+    monkeypatch.setattr(auth, "_generated_secret", None)
     with caplog.at_level("WARNING"):
         s = auth.get_secret()
-    assert s
+    assert s and len(s) > 40
     assert "ORAR_SECRET" in caplog.text
+    # persisted next to the DB, so a restart keeps the same secret
+    monkeypatch.setattr(auth, "_generated_secret", None)
+    assert auth.get_secret() == s
+
+
+def test_secret_required_in_production(monkeypatch):
+    import pytest
+    from app import auth
+
+    monkeypatch.delenv("ORAR_SECRET", raising=False)
+    monkeypatch.setenv("ORAR_ENV", "production")
+    with pytest.raises(RuntimeError):
+        auth.get_secret()

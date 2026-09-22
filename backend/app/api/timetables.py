@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from collections import defaultdict
 from datetime import datetime
 from typing import Literal
 from urllib.parse import quote
@@ -200,9 +202,25 @@ def _check_move_bounds(setup: InstitutionSetup, body: MoveIn) -> None:
         raise HTTPException(status_code=422, detail="Sala aleasă nu există.")
 
 
+_move_locks: dict[int, threading.Lock] = defaultdict(threading.Lock)
+_move_locks_guard = threading.Lock()
+
+
+def _move_lock(timetable_id: int) -> threading.Lock:
+    with _move_locks_guard:
+        return _move_locks[timetable_id]
+
+
 @router.post("/{timetable_id}/move")
 def move_lesson(timetable_id: int, body: MoveIn, user: User = Depends(current_user),
                 db: Session = Depends(get_db)) -> dict:
+    # Serialize moves per timetable so two quick drags can't overwrite each other.
+    with _move_lock(timetable_id):
+        db.expire_all()
+        return _apply_move(db, user, timetable_id, body)
+
+
+def _apply_move(db: Session, user: User, timetable_id: int, body: MoveIn) -> dict:
     t = _get_owned(db, user, timetable_id)
     result = _require_result(t)
     setup = snapshot_of(t)

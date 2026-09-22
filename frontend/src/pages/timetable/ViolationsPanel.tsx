@@ -12,7 +12,7 @@ export function ViolationsPanel({ violations, unplaced }: { violations: Violatio
     <div className={cx('rounded-xl border px-4 py-3 print:hidden', errors ? SEVERITY_STYLE.error.box : SEVERITY_STYLE.warning.box)}>
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between text-left">
         <span className="text-sm font-semibold text-slate-800">
-          {errors > 0 ? `⛔ ${errors} conflicte` : '⚠️ Atenționări'}
+          {errors > 0 ? `⛔ ${errors} ${errors === 1 ? "conflict" : "conflicte"}` : '⚠️ Atenționări'}
           {violations.length - errors > 0 && ` · ${violations.length - errors} atenționări`}
           {unplaced > 0 && ` · ${unplaced} lecții neplasate`}
         </span>
