@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  body {
+    @apply min-h-screen;
+  }
+  ::selection {
+    @apply bg-indigo-100;
+  }
+}
+
+/* Timetable print: A3 landscape, no chrome, full grid. */
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 8mm;
+  }
+  body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .tt-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .tt-table {
+    font-size: 8px;
+  }
+  .tt-table th,
+  .tt-table td {
+    position: static !important;
+  }
+}
