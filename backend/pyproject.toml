@@ -1,7 +1,7 @@
 [project]
-name = "backend"
+name = "orar-smart-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Orar Smart API — FastAPI backend and OR-Tools CP-SAT timetable solver"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
