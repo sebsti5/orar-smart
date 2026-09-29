@@ -1,5 +1,5 @@
 # Orar Smart — single container: built SPA + FastAPI/CP-SAT backend.
-FROM node:22-slim AS frontend
+FROM node:26-slim AS frontend
 WORKDIR /srv/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
