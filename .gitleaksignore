@@ -1,0 +1,3 @@
+# Dummy secrets used only by the test suite
+546c0caa5bbba36e9b9bbbe32845b021da78668e:backend/tests/api_support.py:generic-api-key:172
+546c0caa5bbba36e9b9bbbe32845b021da78668e:backend/tests/test_api_integration.py:generic-api-key:27

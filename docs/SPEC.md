@@ -6,7 +6,7 @@ clash-free, humane timetable generated automatically — viewable per group
 (UTM-style grid: groups as columns, days × slots as rows), per teacher and per
 room, editable by drag & drop, exportable to Excel, shareable via public link.
 
-Source requirements: `~/Downloads/Setup.xlsx` (General Setup + University sheets).
+Source requirements: the institution setup workbook (General Setup + University sheets).
 Reference output: FCIM UTM timetables (fcim.utm.md/procesul-de-studii/orar/):
 7 slots of 90 min (08:00, 09:45, 11:30, 13:30, 15:15, 17:00, 18:45), big break
 after slot 3, lectures merged across a stream of groups, odd/even-week split cells,
