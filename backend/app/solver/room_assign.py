@@ -10,7 +10,7 @@ from ortools.sat.python import cp_model
 from app.schemas import PinnedLesson
 
 from .common import SetupIndex, group_units
-from .model_time import NUM_WORKERS, pin_key
+from .model_time import pin_key, solver_workers
 from .rooms import eligible_rooms
 from .sessions import Session
 
@@ -44,7 +44,7 @@ def assign_rooms(idx: SetupIndex, sessions: list[Session], placements: dict[int,
     objective.extend(-BUILDING_CHANGE_COST * c for c in _building_changes(idx, m, y, sessions, placements))
     m.Maximize(sum(objective))
     solver = cp_model.CpSolver()
-    solver.parameters.num_workers = NUM_WORKERS
+    solver.parameters.num_workers = solver_workers()
     solver.parameters.max_time_in_seconds = max(0.5, float(time_limit_s))
     code = solver.Solve(m)
     result: dict[int, str | None] = {i: None for i in placements}

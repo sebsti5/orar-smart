@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    image: orar-smart:latest
+    container_name: orar-smart-app
+    user: "1000:1000"
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ORAR_COOKIE_SECURE: "1"
+      ORAR_SOLVER_WORKERS: "2"
+    ports:
+      - "127.0.0.1:8098:8000"
+    volumes:
+      - ./data:/data
+    cpus: 2
+    mem_limit: 1536m

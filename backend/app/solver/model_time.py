@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable
@@ -17,6 +18,15 @@ from .sessions import Session
 Cell = tuple[int, int]
 RELAXABLE = ("availability", "pins", "max_per_day", "rooms")
 NUM_WORKERS = 8
+
+
+def solver_workers() -> int:
+    """CP-SAT thread count; `ORAR_SOLVER_WORKERS` caps it on shared servers."""
+    try:
+        n = int(os.environ.get("ORAR_SOLVER_WORKERS", ""))
+    except ValueError:
+        return NUM_WORKERS
+    return n if n > 0 else NUM_WORKERS
 
 
 @dataclass
@@ -164,7 +174,7 @@ class TimeModel:
         if optimize and self.objective:
             self.m.Minimize(sum(self.objective))
         solver = cp_model.CpSolver()
-        solver.parameters.num_workers = NUM_WORKERS
+        solver.parameters.num_workers = solver_workers()
         solver.parameters.max_time_in_seconds = max(0.5, float(time_limit_s))
         callback = _Callback(on_solution) if on_solution else None
         code = solver.Solve(self.m, callback)

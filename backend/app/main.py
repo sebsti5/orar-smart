@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app import auth, db, jobs
+from app.site_gate import SiteGate, site_password
 from app.api import auth as auth_api
 from app.api import public as public_api
 from app.api import setup as setup_api
@@ -76,6 +77,9 @@ def create_app(frontend_dist: Path | None = None) -> FastAPI:
     )
     app.include_router(_api_router())
     _mount_frontend(app, frontend_dist or FRONTEND_DIST)
+    password = site_password()
+    if password:
+        app.add_middleware(SiteGate, password=password)
     return app
 
 
