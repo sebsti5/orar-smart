@@ -16,6 +16,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Quick start](#-quick-start) · [How the solver works](#-how-the-solver-works) · [Deployment](#-deployment) · [Project layout](#-project-layout)
 
@@ -140,7 +141,7 @@ background worker; the client polls live progress and the best score found so fa
 ## 🧪 Testing
 
 ```bash
-cd backend  && uv run pytest              # 118 tests — solver, API, export, auth
+cd backend  && uv run pytest                   # 118 tests — solver, API, export, auth
 cd frontend && npm test && npm run typecheck   # 101 tests — components, hooks, grid logic
 ```
 
@@ -191,6 +192,11 @@ orar-smart/
 └── docker-compose.prod.yml
 ```
 
+## 🤝 Contributing
+
+Issues and pull requests are welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md).
+Please report security issues privately as described in [SECURITY.md](SECURITY.md).
+
 ## 🗺️ Roadmap
 
 - [ ] College and school profiles (same model, different defaults)
@@ -201,5 +207,5 @@ orar-smart/
 ---
 
 <div align="center">
-<sub>© 2026 Orar Smart. All rights reserved.</sub>
+<sub>Released under the <a href="LICENSE">MIT License</a> · Made with ❤️ in Moldova 🇲🇩</sub>
 </div>
